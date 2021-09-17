@@ -55,5 +55,26 @@ class Vehicle(Loggable):
     @classmethod
     def create_random(cls, road, velocity=None, spacing=1):
         """
+        Create a random vehicle on the road
+
+        The lane and/or velocity are chosen randomly, which longitudinal position is chosen behind the last
+        vehicle in the road with density based on the number of lanes
+
+        :param road: the road where the vehicle is driving
+        :param velocity: initial velocity is [m/s]. If none, will be chosen randomly
+        :param spacing: ratio of spacing to the front vehicle, 1 being the default
+        :return: A vehicle with random position and/or velocity
+        """
+        if velocity is None:
+            velocity = road.np_random
+
+    @classmethod
+    def create_from(cls, vehicle):
+        """
+        Create a new vehicle from an existing one
+        Only the vehicle dynamics are copied, other properties are default
+
+        :param vehicle: a vehicle
+        :return: a new vehicle at the same dynamical state
         """
         pass
