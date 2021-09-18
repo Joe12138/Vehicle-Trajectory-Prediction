@@ -33,6 +33,39 @@ class RoadNetwork(object):
 
         return indexes[int(np.argmin(distances))]
 
+    def bfs_path(self, start, goal):
+        """
+        Breadth-first search of all routes from start to goal.
+
+        :param start: starting node
+        :param goal: goal node
+        :return: list of paths from start to goal
+        """
+        queue = [(start, [start])]
+
+        while queue:
+            (node, path) = queue.pop(0)
+            if node not in self.graph:
+                yield []
+
+            for _next in set(self.graph[node].keys())-set(path):
+                if _next == goal:
+                    yield path + [_next]
+                elif _next in self.graph:
+                    queue.append((_next, path+[_next]))
+
+    def shortest_path(self, start, goal):
+        """
+        Breadth-first search of shortest path from start to goal.
+        :param start: starting node
+        :param goal: goal node
+        :return: shortest path from start to goal
+        """
+        try:
+            return next(self.bfs_path(start, goal))
+        except StopIteration:
+            return None
+
     def side_lane(self, lane_index):
         """
         :param lane_index: the index of a lane
