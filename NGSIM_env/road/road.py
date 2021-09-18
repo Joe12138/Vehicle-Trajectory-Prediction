@@ -32,3 +32,17 @@ class RoadNetwork(object):
                     indexes.append((_from, _to, _id))
 
         return indexes[int(np.argmin(distances))]
+
+    def side_lane(self, lane_index):
+        """
+        :param lane_index: the index of a lane
+        :return: indexes of lanes next to an input lane, to its right or left or both.
+        """
+        _from, _to, _id = lane_index
+        lanes = []
+
+        if _id > 0:
+            lanes.append((_from, _to, _id-1))
+        if _id < len(self.graph[_from][_to])-1:
+            lanes.append((_from, _to, _id+1))
+        return lanes
