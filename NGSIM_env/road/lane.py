@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractclassmethod
 import numpy as np
 from NGSIM_env.vehicle.dynamics import Vehicle
 
+
 class AbstratcLane(object):
     """
     A lane on the road, described by its central curve
@@ -33,7 +34,7 @@ class AbstratcLane(object):
 
 
     @abstractclassmethod
-    def headding_at(self, longitudinal):
+    def heading_at(self, longitudinal):
         """
         Get the lane heading at a given longitudinal lane coordinate.
         :param longitudinal: longitudinal lane coordinate [m]

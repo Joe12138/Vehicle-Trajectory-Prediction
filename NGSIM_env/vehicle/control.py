@@ -65,4 +65,166 @@ class ControlledVehicle(Vehicle):
 
         :param action: a high-level action
         """
-        pass
+        self.follow_road()
+
+        if action == "FASTER":
+            self.target_velocity += self.DELTA_VELOCITY
+        elif action == "SLOWER":
+            self.target_velocity -= self.DELTA_VELOCITY
+        elif action == "LANE_RIGHT":
+            _from, _to, _id = self.target_lane_index
+            target_lane_index = _from, _to, np.clip(_id+1, 0, len(self.road.network.graph[_from][_to])-1)
+            if self.road.network.get_lane(target_lane_index).is_reachable_from(self.position):
+                self.target_lane_index = target_lane_index
+        elif action == "LANE_LEFT":
+            _from, _to, _id = self.target_lane_index
+            target_lane_index = _from, _to, np.clip(_id-1, 0, len(self.road.network.graph[_from][_to])-1)
+            if self.road.network.get_lane(target_lane_index).is_reachable_from(self.position):
+                self.target_lane_index = target_lane_index
+
+        action = {"steering": self.steering_control(self.target_lane_index),
+                  "acceleration": self.velocity_control(self.target_velocity)}
+        super(ControlledVehicle, self).act(action)
+
+    def follow_road(self):
+        """
+        At the end of a lane, automatically switch to next one.
+        """
+        if self.road.network.get_lane(self.target_lane_index).after_end(self.position):
+            self.target_lane_index = self.road.network.next_lane(self.target_lane_index, route=self.route,
+                                                                 position=self.position, np_random=np.random)
+
+    def steering_control(self, target_lane_index):
+        """
+        Steer the vehicle to follow the center of an given lane.
+
+        1. Lateral position is controlled by a proportional controller yielding a lateral velocity command
+        2. Lateral velocity command is converted to a heading reference
+        3. Heading is controlled by a proportional controller yielding a heading rate command
+        4. Heading rate command is converted to a steering angle
+
+        :param target_lane_index: index of the lane to follow
+        :return: a steering wheel angle command [rad]
+        """
+        target_lane = self.road.network.get_lane(target_lane_index)
+        lane_coords = target_lane.local_coodinates(self.position)
+        lane_next_coords = lane_coords[0]+self.velocity*self.PURSUIT_TAU
+        lane_future_heading = target_lane.heading_at(lane_next_coords)
+
+        # Lateral position control
+        lateral_velocity_command = -self.KP_LATERAL * lane_coords[1]
+
+        # Lateral velocity to heading
+        heading_command = np.arcsin(np.clip(lateral_velocity_command/utils.not_zero(self.velocity), -1, 1))
+        heading_ref = lane_future_heading + np.clip(heading_command, -np.pi/4, np.pi/4)
+
+        # heading control
+        heading_rate_command = self.KP_HEADING * utils.wrap_to_pi(heading_ref-self.heading)
+
+        # Heading rate to steering angle
+        steering_angle = np.arctan(self.LENGTH/utils.not_zero(self.velocity)*heading_rate_command)
+        steering_angle = np.clip(steering_angle, -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
+
+        return steering_angle
+
+    def velocity_control(self, target_velocity):
+        """
+        Control the velocity of the vehicle.
+
+        Using a simple proportional controller.
+
+        :param target_velocity: the desired velocity
+        :return: an acceleration command [m/s2]
+        """
+        return self.KP_A * (target_velocity-self.velocity)
+
+    def set_route_at_intersection(self, _to):
+        """
+        Set the road to be followed at the next intersection.
+        Erase current planned route.
+        :param _to: index of the road to follow at next intersection, in the road network
+        """
+        if not self.route:
+            return
+        for index in range(min(len(self.route), 3)):
+            try:
+                next_destinations = self.road.network.graph[self.route[index][1]]
+            except KeyError:
+                continue
+            if len(next_destinations) >= 2:
+                break
+        else:
+            return
+
+        next_destinations_from = list(next_destinations.keys())
+
+        if _to == "random":
+            _to = self.road.np_random.randint(0, len(next_destinations_from))
+        next_index = _to % len(next_destinations_from)
+        self.route = self.route[0:, index+1]+[(self.route[index][1], next_destinations_from[next_index],
+                                               self.route[index][2])]
+
+    def predict_trajectory_constant_velocity(self, times):
+        """
+        Predict the future position of the vehicle along its planned route, under constant velcoity
+        :param times: timesteps of position
+        :return: positions, headings
+        """
+        coordinates = self.lane.local.coordinates(self.position)
+        route = self.route or [self.lane_index]
+
+        return zip(*[self.road.network.position_heading_along_route(route, coordinates[0]+self.velocity*t, 0)
+                     for t in times])
+
+
+class MDPVehicle(ControlledVehicle):
+    """
+    A controlled vehicle with a specified discrete range of allowed target velocities.
+    """
+
+    SPEED_COUNT = 21
+    SPEED_MIN = 0  # [m/s]
+    SPEED_MAX = 20  # [m/s]
+
+    def __init__(self, road, position, heading=0, velocity=0, target_lane_index=None, target_velocity=None, route=None,
+                 ngsim_traj=None, vehicle_ID=None, v_length=None, v_width=None):
+        super(MDPVehicle, self).__init__(road, position, heading, velocity, target_lane_index, target_velocity, route)
+        self.velocity_index = self.speed_to_index(self.target_velocity)
+        self.target_velocity = self.index_to_speed(self.velocity_index)
+        self.ngsim_traj = ngsim_traj
+        self.traj = np.array(self.position)
+        self.sim_steps = 0
+        self.vehicle_ID = vehicle_ID
+        self.LENGTH = v_length  # Vehicle length [m]
+        self.WIDTH = v_width  # Vehicle width [m]
+
+    @classmethod
+    def create(cls, road, vehicle_ID):
+
+    @classmethod
+    def speed_to_index(cls, speed):
+        """
+        Find the index of the closest speed allowed to a given speed.
+        :param speed: an input speed [m/s]
+        :return: the index of the closest speed allowed []
+        """
+        x = (speed-cls.SPEED_MIN)/(cls.SPEED_MAX-cls.SPEED_MIN)
+        return np.int(np.clip(np.round(x*(cls.SPEED_COUNT-1)), 0, cls.SPEED_COUNT-1))
+
+    @classmethod
+    def index_to_speed(cls, index):
+        """
+        Convert an index among allowed speeds to its corresponding speed
+        :param index: the speed index []
+        :return the corresponding speed [m/s]
+        """
+        if cls.SPEED_COUNT > 1:
+            return cls.SPEED_MIN+index*(cls.SPEED_MAX-cls.SPEED_MIN)/(cls.SPEED_COUNT-1)
+        else:
+            return cls.SPEED_MIN
+
+    def speed_index(self, speed):
+        """
+        The index of current velocity
+        """
+        return self.speed_to_index(self.velocity)
