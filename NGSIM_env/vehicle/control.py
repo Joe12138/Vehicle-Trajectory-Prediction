@@ -199,7 +199,46 @@ class MDPVehicle(ControlledVehicle):
         self.WIDTH = v_width  # Vehicle width [m]
 
     @classmethod
-    def create(cls, road, vehicle_ID):
+    def create(cls, road, vehicle_ID, position, v_length, v_width, ngsim_traj, heading=0, velocity=0,
+               target_velocity=10):
+        """
+        Create a human-like driving vehicle in replace of a NGSIM vehicle.
+
+        :param road: the road where the vehicle is driving
+        :param position: the position where the vehicle start on the road
+        :param velocity: initial velocity in [m/s]. If None, will be chosen randomly.
+        :return: A vehicle with random position and/or velocity
+        """
+        v = cls(road, position, heading, velocity, target_velocity=target_velocity, vehicle_ID=vehicle_ID,
+                v_length=v_length, v_width=v_width, ngsim_traj=ngsim_traj)
+        return v
+
+    def act(self, action=None):
+        """
+        Perform a high-level action.
+
+        If the action is a velocity change, choose velocity from the allowed discrete range.
+        Else, forward action to the ControlledVehicle handle
+
+        :param action: a high-level action
+        """
+        if action == "FASTER":
+            self.velocity_index = self.speed_to_index(self.velocity)+1
+        elif action == "SLOWER":
+            self.velocity_index = self.speed_to_index(self.velocity)-1
+        else:
+            super(MDPVehicle, self).act(action)
+            return
+
+        self.velocity_index = np.clip(self.velocity_index, 0, self.SPEED_COUNT-1)
+        self.target_velocity = self.index_to_speed(self.velocity_index)
+        super().act()
+
+    def step(self, dt):
+        self.sim_steps += 1
+        super(MDPVehicle, self).step(dt)
+
+        self.traj = np.append(self.traj, self.position, axis=0)
 
     @classmethod
     def speed_to_index(cls, speed):
@@ -228,3 +267,35 @@ class MDPVehicle(ControlledVehicle):
         The index of current velocity
         """
         return self.speed_to_index(self.velocity)
+
+    def predict_trajectory(self, actions, action_duration, trajectory_timestep, dt):
+        """
+        Predict the future trajectory of the vehicle given a sequence of actions.
+
+        :param actions:  a sequence of future actions
+        :param action_duration: the duration of each action.
+        :param trajectory_timestep: the duration between each save of the vehicle state
+        :param dt: the timestep of the simulation
+        :return: the sequence of future states
+        """
+        states = []
+        v = copy.deepcopy(self)
+        t = 0
+        for action in actions:
+            v.act(action)  # High-level decision
+            for _ in range(int(action_duration/dt)):
+                t += 1
+                v.act()  # Low-level control action
+                v.step(dt)
+                if (t % int(trajectory_timestep/dt)) == 0:
+                    states.append(copy.deepcopy(v))
+        return states
+
+    def calculate_human_likeness(self):
+        original_traj = self.ngsim_traj[:self.sim_steps+1, :2]
+        ego_traj = self.traj.reshape(-1, 2)
+        # Average Displacement Error (ADE)
+        ADE = np.mean([np.linalg.norm(original_traj[i]-ego_traj[i]) for i in range(ego_traj.shape[0])])
+        FDE = np.linalg.norm(original_traj[-1]-ego_traj[-1])  # Final Displacement Error (FDE)
+
+        return FDE

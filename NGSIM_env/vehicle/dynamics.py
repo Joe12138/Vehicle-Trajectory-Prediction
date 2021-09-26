@@ -280,7 +280,6 @@ class Vehicle(Loggable):
         return self.__str__()
 
 
-
 class Obstacle(Vehicle):
     """
     A motionless obstacle at a given position
