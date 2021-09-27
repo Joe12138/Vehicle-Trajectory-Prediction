@@ -261,3 +261,10 @@ class Road(Loggable):
             vehicles = vehicles[:count]
         return vehicles
 
+    def act(self, step):
+        """
+        Decide the action of each entity on the road.
+        """
+        for vehicle in self.vehicles:
+            pass
+
