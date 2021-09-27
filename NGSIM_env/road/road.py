@@ -1,6 +1,10 @@
 import logging
 
+import pandas as pd
 import numpy as np
+
+from NGSIM_env.logger import Loggable
+from NGSIM_env.road.lane import LineType, StraightLane
 
 
 class RoadNetwork(object):
@@ -132,7 +136,14 @@ class RoadNetwork(object):
         except StopIteration:
             return None
 
-    def side_lane(self, lane_index):
+    def all_side_lanes(self, lane_index):
+        """'
+        :param lane_index: the index of a lane.
+        :return: all indexes of lanes belonging to the same road.
+        """
+        return self.graph[lane_index[0]][lane_index[1]]
+
+    def side_lanes(self, lane_index):
         """
         :param lane_index: the index of a lane
         :return: indexes of lanes next to an input lane, to its right or left or both.
@@ -145,3 +156,108 @@ class RoadNetwork(object):
         if _id < len(self.graph[_from][_to])-1:
             lanes.append((_from, _to, _id+1))
         return lanes
+
+    @staticmethod
+    def is_same_road(lane_index_1, lane_index_2, same_lane=False):
+        """
+        Is lane 1 in the same road as lane 2?
+        """
+        return lane_index_1[:2] == lane_index_2[:2] and (not same_lane or lane_index_1[2] == lane_index_2[2])
+
+    @staticmethod
+    def is_leading_to_road(lane_index_1, lane_index_2, same_lane=False):
+        """
+        Is lane 1 leading to lane 2?
+        """
+        return lane_index_1[1] == lane_index_2[0] and (not same_lane or lane_index_1[2] == lane_index_2[2])
+
+    def is_connected_road(self, lane_index_1, lane_index_2, route=None, same_lane=False, depth=0):
+        """
+        Is the lane 2 leading to a road within lane 1's route ?
+
+        Vehicles on these lanes must be considered for collisions.
+        :param lane_index_1: origin lane
+        :param lane_index_2: target lane
+        :param route: route from origin lane, if any
+        :param same_lane: compare lane id
+        :param depth: search depth from lane 1 along its route
+        :return: whether the roads are connected
+        """
+        if RoadNetwork.is_same_road(lane_index_2, lane_index_1, same_lane) or RoadNetwork.is_leading_to_road(
+                lane_index_2, lane_index_1, same_lane):
+            return True
+        if depth > 0:
+            if route and route[0][:2] == lane_index_1[:2]:
+                # Route is starting at current road, skip it
+                return self.is_connected_road(lane_index_1, lane_index_2, route[1:], same_lane, depth)
+            elif route and route[0][0] == lane_index_1[1]:
+                # Route is continuing from current road, follow it
+                return self.is_connected_road(route[0], lane_index_2, route[1:], same_lane, depth-1)
+            else:
+                # Recursively search all road at intersection
+                _from, _to, _id = lane_index_1
+                return any([self.is_connected_road((_to, l1_to, _id), lane_index_2, route, same_lane, depth-1) for
+                            l1_to in self.graph.get(_to, {}).keys()])
+        return False
+
+    def lanes_list(self):
+        return [lane for tos in self.graph.values() for ids in tos.values() for lane in ids]
+
+    @staticmethod
+    def straight_road_network(lanes=4, length=1000):
+        """
+        Construct straight road network
+        """
+        net = RoadNetwork()
+        for lane in range(lanes):
+            origin = [0, lane*StraightLane.DEFAULT_WIDTH]
+            end = [length, lane*StraightLane.DEFAULT_WIDTH]
+
+            line_types = [LineType.CONTINUOUS_LINE if lane == 0 else LineType.STRIPED,
+                          LineType.CONTINUOUS_LINE if lane == lanes-1 else LineType.NONE]
+            net.add_lane(0, 1, StraightLane(origin, end, line_types=line_types))
+
+        return net
+
+    def position_heading_along_route(self, route, longitudinal, lateral):
+        """
+        Get the absolute position and heading along a route composed of several lanes at same local coordinates.
+        :param route: a planned route, list of indexes
+        :param longitudinal: longitudinal position
+        :param lateral: lateral position
+        :return: position, heading
+        """
+        while len(route) > 1 and longitudinal > self.get_lane(route[0]).length:
+            longitudinal -= self.get_lane(route[0]).length
+            route = route[1:]
+
+        return self.get_lane(route[0]).position(longitudinal, lateral), self.get_lane(route[0]).heading_at(longitudinal)
+
+
+class Road(Loggable):
+    """
+    A road is a set of lanes, and a set of vehicles driving on these lanes.
+    """
+    def __init__(self, network=None, vehicles=None, np_random=None, record_history=False):
+        """
+        New road.
+
+        :param network: the road network describing the lanes.
+        :param vehicles: the vehicles driving on the road
+        :param np.random.RandomState np_random: a random number generator for vehicle behavior
+        :param record_history: whether the recent trajectories of vehicles should be recorded for display
+        """
+        self.network = network or []
+        self.vehicles = vehicles or []
+        self.np_random = np_random if np_random else np.random.RandomState()
+        self.record_history = record_history
+
+    def close_vehicle_to(self, vehicle, distance, count=None, sort=False, see_behind=True):
+        vehicles = [v for v in self.vehicles if np.linalg.norm(v.position-vehicle.position) < distance and v is not
+                    vehicle and (see_behind or -2*vehicle.LENGTH < vehicle.lane_distance_to(v))]
+        if sort:
+            vehicles = sorted(vehicles, key=lambda v: abs(vehicle.lane_distance_to(v)))
+        if count:
+            vehicles = vehicles[:count]
+        return vehicles
+
