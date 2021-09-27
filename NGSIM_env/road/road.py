@@ -266,5 +266,6 @@ class Road(Loggable):
         Decide the action of each entity on the road.
         """
         for vehicle in self.vehicles:
-            pass
+            if isinstance(vehicle, NGSIMVehicle):
+                
 
