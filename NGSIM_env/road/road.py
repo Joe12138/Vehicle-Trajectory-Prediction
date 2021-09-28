@@ -7,6 +7,7 @@ from NGSIM_env.logger import Loggable
 from NGSIM_env.road.lane import LineType, StraightLane
 
 
+
 class RoadNetwork(object):
     def __init__(self):
         self.graph = {}
