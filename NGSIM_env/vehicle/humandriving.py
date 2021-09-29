@@ -85,5 +85,53 @@ class NGSIMVehicle(IDMVehicle):
         # Lateral: MOBIL
         self.follow_road()
         if self.enable_lane_change:
-            self.chane
+            self.change_lane_policy()
+        action["steering"] = self.steering_control(self.target_lane_index)
+
+        # Longitudinal: IDM
+        action["acceleration"] = self.acceleration(ego_vehicle=self, front_vehicle=front_vehicle,
+                                                   rear_vehicle=rear_vehicle)
+        action["acceleration"] = np.clip(action["acceleration"], -self.ACC_MAX, self.ACC_MAX)
+        self.check_collision()  # should be a method
+        self.action = action
+
+    def step(self, dt):
+        """
+        Update the state of a NGSIM vehicle.
+        If the front vehicle is too close, use IDM model to override the NGSIM vehicle.
+        """
+        self.appear = True if self.ngsim_traj[self.sim_steps][0] != 0 else False
+        self.timer += dt
+        self.sim_steps += 1
+        self.heading_history.append(self.heading)
+        self.velocity_history.append(self.velocity)
+        self.crash_history.append(self.crashed)
+        self.overtaken_history.append(self.overtaken)
+
+        # Check if need to overtake
+        front_vehicle, rear_vehicle = self.road.neighbour_vehicle(self)
+        if front_vehicle is not None and isinstance(front_vehicle, NGSIMVehicle) and front_vehicle.overtaken:
+            gap = self.lane_distance_to(front_vehicle)
+            desired_gap = self.desired_gap(self, front_vehicle)
+        elif front_vehicle is not None and isinstance(front_vehicle, HumanLikeVehicle)
+
+
+class HumanLikeVehicle(IDMVehicle):
+    """
+    Create a human-like (IRL) driving agent.
+    """
+    TAU_A = 0.2  # [s]
+    TAU_DS = 0.1  # [s]
+    PURSUIT_TAU = 1.5*TAU_DS  # [s]
+    KP_A = 1/TAU_A
+    KP_HEADING = 1/TAU_DS
+    KP_LATERAL = 1 / 0.2  # [1/s]
+    MAX_STEERING_ANGLE = np.pi/3  # [rad]
+    MAX_VELOCITY = 30  # [m/s]
+
+    def __init__(self, road, position, heading=0, velocity=0, acc=0, target_lane_index=None, target_velocity=15,
+                 route=None, timer=None, vehicle_ID=None, v_length=None, v_width=None, ngsim_traj=None, human=False,
+                 IDM=False):
+        pass
+
 
