@@ -5,6 +5,7 @@ import numpy as np
 
 from NGSIM_env.logger import Loggable
 from NGSIM_env.road.lane import LineType, StraightLane
+from NGSIM_env.vehicle.humandriving import NGSIMVehicle
 
 
 
@@ -268,5 +269,17 @@ class Road(Loggable):
         """
         for vehicle in self.vehicles:
             if isinstance(vehicle, NGSIMVehicle):
+                vehicle.act()
+            else:
+                vehicle.act(step)
+
+    def step(self, dt):
+        """
+        Step the dynamics of entity on the road.
+
+        :param dt: timestep [s]
+        """
+        for vehicle in self.vehicles:
+            vehicle.step(dt)
                 
 
