@@ -6,6 +6,7 @@ import numpy as np
 from NGSIM_env.logger import Loggable
 from NGSIM_env.road.lane import LineType, StraightLane
 from NGSIM_env.vehicle.humandriving import NGSIMVehicle
+from NGSIM_env.vehicle.dynamics import Obstacle
 
 
 
@@ -281,5 +282,53 @@ class Road(Loggable):
         """
         for vehicle in self.vehicles:
             vehicle.step(dt)
-                
 
+        for vehicle in self.vehicles:
+            for other in self.vehicles:
+                vehicle.check_collision(other)
+
+    def neighbour_vehicles(self, vehicle, lane_index=None):
+        """
+        Find the preceding and following vehicles of a given vehicle.
+        :param vehicle: the vehicle whose neighbours must be found.
+        :param lane_index: the lane on which to look for preceding and following vehicles.
+                           It doesn't have to be the current vehicle lane but can also be another lane, in which case
+                           the vehicle is projected on it considering its local coordinates in the lane.
+        :return: its preceding vehicle, its following vehicle
+        """
+        lane_index = lane_index or vehicle.lane_index
+        if not lane_index:
+            return None, None
+        lane = self.network.get_lane(lane_index)
+        s = self.network.get_lane(lane_index).local_coordinates(vehicle.position)[0]
+        s_front = s_rear = None
+        v_front = v_rear = None
+        for v in self.vehicles:
+            if v is not vehicle and True:
+                s_v, lat_v = lane.local_coordinates(v.position)
+                if not lane.on_lane(v.position, s_v, lat_v, margin=1):
+                    continue
+                if s <= s_v and (s_front is None or s_v <= s_front):
+                    s_front = s_v
+                    v_front = v
+                if s_v < s and (s_rear is None or s_v > s_rear):
+                    s_rear = s_v
+                    v_rear = v
+
+        return v_front, v_rear
+
+    def dump(self):
+        """Dump the data of all entities on the road"""
+        for v in self.vehicles:
+            if not isinstance(v, Obstacle):
+                v.dump()
+
+    def get_log(self):
+        """
+        Concatenate the logs of all entities on the road.
+        :return: the concatenated log
+        """
+        return pd.concat([v.get_log() for v in self.vehicles])
+
+    def __repr__(self):
+        return self.vehicles.__repr__()
