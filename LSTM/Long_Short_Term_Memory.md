@@ -8,7 +8,7 @@ Learning to store information over extended time intervals via recurrent backpro
 
 Recurrent networks can in principle use their feedback connections to store representations of recent input events in form of activations ("short-term memory", as opposed to "long-term memory" embodied by slowly changing weights). This is potentially significant for many applications, including speech processing, non-Markovian control, and music composition. The most widely used algorithms for learning *what* to put in short-term memory, however, take too much timer or do not work well at all, especially when minimal time lags between inputs and corresponding teacher signals are long. Although theoretically fascinating, existing methods do not provide clear *practical* advantages over, say, backprop in feedforward nets with limited time windows.
 
-**The problem.** With conventional "Back-Propagation Through Time" (BPTT) or "Real-Time Recurrent Learning" (RTRL), error signals "flowing backwards in time" tend to either (1) blow up or (2) vanish: the temporal evolution of the backpropagated error exponentially depends on the size of the weight. Case (1) may lead to oscillating weights, while in case (2) learning to bridge long time lags takes a prohibitive amount of time, or does not work at all.
+**The problem.** With conventional "Back-Propagation Through Time" (**BPTT**) or "Real-Time Recurrent Learning" (RTRL), error signals "flowing backwards in time" tend to either (1) blow up or (2) vanish: the temporal evolution of the backpropagated error exponentially depends on the size of the weight. Case (1) may lead to oscillating weights, while in case (2) learning to bridge long time lags takes a prohibitive amount of time, or does not work at all.
 
 **The remedy.** 强调LSTM的优点
 
@@ -25,5 +25,18 @@ Recurrent networks can in principle use their feedback connections to store repr
 - $net_i(t)=\sum_{j}w_{i,j}y^{j}(t-1)$ is unit $i$'s current net input
 - $w_{ij}$ is the weight on the connection from unit $j$ to $i$ 
 - Some non-output unit $j$'s backpropagated error signal is $v_{j}(t)=f'_j(net_j(t))\sum_{i}w_{ij}v_{i}(t+1)$
-- 
+
+**Outline of Hochreiter's analysis**
+
+- Suppose we have a fully connected net whose non-input unit indices range from 1 to $n$.
+
+- Let us focus on local error flow from unit $u$ to unit $v$.
+
+- The error occurring at an arbitrary unit $u$ at time step $t$ is propagated "back into time" for $q$ time steps, to an arbitrary unit $v$.
+
+- This will scale the error by the following factor:
+
+  
+
+
 
