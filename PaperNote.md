@@ -197,3 +197,145 @@ unscented Kalman filters + dynamic Bayesian network
   doi={10.1109/TIE.2017.2782236}}
 ```
 
+# <center>Driving Behavior Modeling Using Naturalistic Human Driving Data With Inverse Reinforcement Learning</center>
+
+## 数学建模
+
+The state $\mathbf{s}_t \in \mathcal{S}$: the driver observes at timestep $t$ consists of the position, orientations, and velocities of itself and surrounding vehicles
+
+The  action $\mathbf{a}_t \in \mathcal{A}$ the driver takes is composed of speed and steering controls of the ego vehicle.
+
+Assuming a discrete-time setup and a finite length $L$. a trajectory $\zeta=[\mathbf{s}_1, \mathbf{a}_1,\mathbf{s}_2, \mathbf{a}_2,...,\mathbf{s}_L, \mathbf{a}_L]$ is yielded by organizing the state and action in each timestep within the decision horizon.
+
+The trajectory includes multiple vehicles in the driving scene since we consider interactions between agents.
+
+状态$\mathbf{s}_t$只是可以直接从传感器获得的物理或部分观察结果。
+
+我们假设一个基于selected features的加权和的线性结构的reward function
+
+在一个指定的状态$\mathbf{s}_t$的reward function $r(\mathbf{s}_t)$ 被定义为
+
+$$r(\mathbf{s}_t)=\theta^T\mathbf{f}(\mathbf{s}_t) \tag{1}$$
+
+其中，$\mathbf{\theta}=[\theta_1, \theta_2,...,\theta_K]$是$K-$维的权重向量，$\mathbf{f(\mathbf{s}_t)}=[f_1(\mathbf{s}_t), f_2(\mathbf{s}_t),...,f_K(\mathbf{s}_t)]$是提取的刻画状态$\mathbf{s}_t$的feature vector
+
+因此，一条轨迹$R(\zeta)$的reward表示为：
+
+$$\R(\zeta)=\sum_{t}r(\mathbf{s}_t)=\mathbf{\theta}^T\mathbf{f}_{\zeta}=\mathbf{\theta}^T\sum_{\mathbf{s}_t\in \zeta}\mathbf{f}(\mathbf{s}_t)$$
+
+其中，$\mathbf{f}_{\zeta}$表示在轨迹$\zeta$上的accumulative features
+
+### 问题定义
+
+给定一个包含$N$条轨迹的人类驾驶数据$\mathcal{D}=\{\zeta_1, \zeta_2, ..., \zeta_{N}\}$
+
+如何获得reward的权重$\mathbf{\theta}$，使得可以生成一个匹配人类演示轨迹的driving policy
+
+
+
+## 轨迹生成
+
+对于横向$y$坐标，我们需要指定目标位置、速度和加速度，与初始状态一起形成总共六个边界条件，这需要一个五次多项式函数。 对于纵向$x$轴，只需要目标速度和加速度，因此四次多项式函数可以满足平滑性要求。
+
+计算五秒的轨迹，每0.1秒作为一个时间间隔
+
+我们可以通过在目标空间$\Phi=\{v_{xe}, a_{xe}, y_{e},v_{ye},a_{ye}\}$采样目标状态从而生成多条多项式轨迹，使得其能够覆盖所有可能的行为。
+
+
+
+## 环境模型
+
+1. **车辆的运动学状态根据自行车模型传播。**
+
+**注：**
+
+自行车模型（Bicycle Model）的建立基于如下假设：
+
+- 不考虑车辆在垂直方向（$Z$轴方向）的运动，即假设车辆的运动是一个二维平面上的运动
+- 假设车辆左右侧轮胎在任意时刻都拥有相同的转向角度和转速；这样车辆的左右两个轮胎的运动可以合并为一个轮胎来描述
+- 假设车辆行驶速度变化缓慢，忽略前后轴载荷的转移
+- 假设车身和悬架系统都是刚性系统
+- 假设车辆的运动和转向是由前轮驱动的
+
+2. 一般的想法是周围的车辆遵循数据集中的原始轨迹，否则会根据与自车或其他被影响的车辆保持安全距离的目的来做出反应。
+3. 基本假设是，人类是反应最好的代理人，他们可以准确地预测其他代理人对其计划行动的反应。 值得注意的是，这种设置可能会在转移函数的估计中引入一些偏差。
+4. 具体而言，仅考虑环境中距离本车 50 米范围内的车辆。 周围的车辆首先会按照记录的轨迹来，每个人都会不断检查自己与前方车辆之间的差距。 如果前面是自我车辆并且它们之间的间隙小于 IDM 给出的期望间隙，则环境车辆将被 IDM 覆盖，从而不再遵循其原始轨迹。 同样，如果前面的车辆是被 IDM 覆盖的环境车辆，如果它们之间的间隙太小，后面的环境车辆也会被覆盖。
+
+
+
+## Summary of the IRL Algorithm
+
+1. **initialize the reward parameters randomly**
+2. **compute the feature expectation of human driving trajectories**
+3. **create a buffer to store the feature vector** of all the generated trajectories to avoid sampling in the environment since the sampling process consumes most of the computation time
+4. 
+
+## 自然人类驾驶数据集
+
+1. 每辆车的位置以每秒 10 帧的速度记录，从而生成从该区域开始到结束的详细车辆轨迹。 然而，数据集中最初收集的车辆轨迹充满了观察噪声，因此我们使用 **Savitzky-Golay 滤波器**在 2 秒窗口上使用**三阶多项式来平滑原始轨迹**并获得用于奖励学习的演示轨迹。
+
+
+
+## 特征选择
+
+1. **Feature are mapping from state to real values which capture important properties of the state.**
+2. 驾驶状态的特征从以下四个对人类驾驶员很重要的方面进行归纳：
+   - Travel Efficiency:  此功能旨在反映人类尽快到达目的地的愿望，其定义为车辆的速度：
+     - $f_{v}(\mathbf{s}_t)=v(t)$
+   - Comfort:乘坐舒适度是人类驾驶员更喜欢的另一个因素，衡量舒适度的指标是纵向加速度 $a_x$ 、横向加速度 $a_y$和纵向加加速度 $j_x$ ：
+     - ![image-20211011160154955](G:\Prediction\Journal\Photo\comfort.png)
+     - 其中，$x(t)$和$y(t)$是纵向和横向坐标
+   - Risk Aversion: 人类驾驶员倾向于与周围的车辆保持安全距离，这个距离因人类驾驶员而异，这反映了他们不同程度的感知风险。 我们将前车的风险水平定义为与从本车到前车的时距相关的指数函数，假设匀速运动：
+     - $f_{risk_f}(\mathbf{s}_t)=e^{-(\frac{x_f(t)-x_{ego}(t)}{v_{ego}(t)})}$
+     - $f_{risk_r}(\mathbf{s}_t)=e^{-(\frac{x_{ego}(t)-x_r(t)}{v_{r}(t)})}$
+       - 其中，$x_r$是自车后面的车的纵坐标，$x_f$是离自车最近的前面的车的纵坐标
+     - 请注意，在我们的环境模型中评估生成的轨迹时可能会发生碰撞，包括与其他车辆或路缘石碰撞，因此碰撞也是一个风险指标，其定义为：
+       - ![image-20211011160858864](G:\Prediction\Journal\Photo\collision.png)
+   - Interaction:
+     - 人类驾驶行为的一个基本属性是人类意识到他们的行为对周围车辆的影响，或者更具体地说，他们的计划是否会给其他人带来额外的不便（例如，急速减速让行）[32]。 我们引入以下特征来明确表示这种影响。
+     - 它被定义为根据我们的环境模型（后面车辆的链式减速反应）受到本车行为影响的环境车辆的预测减速度的总和，表明本车对原路线的改变有 对他们造成直接影响。
+     - $f_{I}(\mathbf{s}_t)=\sum_{i}a_i(t), if\ a_i(t)<0$
+     - where $a_i(t)$ is the acceleration of the vehicle $i$ that has been influenced by the ego vehicle.
+     - 在实际场景中应用奖励函数时，我们可以使用预测模块来估计此特征，该模块使用驱动模型（如 IDM）预测其他agent由于自车计划动作而采取的动作。
+3. 上述所有特征都是在每个时间步计算并随着时间的推移累积以获得轨迹的特征。 然后通过除以数据集中的最大值将轨迹特征归一化为 [0, 1]，以抵消其不同单位和尺度的影响。 此外，我们为碰撞特征分配了一个固定的大负权重 (-10)，因为与使该权重可学习相比，这可以提高建模精度。
+
+
+
+## 实验设计
+
+1. **Driving Behavior Analysis:** 我们利用所提出的方法来分析不同人类驾驶员的驾驶行为。 我们首先从数据集中展示人类驾驶员的奖励学习过程作为示例，以揭示我们提出的方法的有效性。 然后，学习到的奖励函数用于确定测试条件下候选轨迹的概率并解释一些驾驶行为。
+2. **Robustness:** 我们在非训练阶段的场景中测试学习到的奖励函数，以确定学习到的策略与人类策略之间的相似性是否显着下降，以研究所提出方法的鲁棒性。
+3. **Model Accuracy:**
+   - 我们通过将学到的策略与地面真实的人类驾驶轨迹进行比较，展示了在测试条件下建模准确性的定量结果。
+   - 我们研究了个性化的建模假设，即每个人类驾驶员有不同的偏好（驾驶风格），因此对奖励函数有不同的权重。作为比较，我们采用了所有驾驶员共享一个相同的成本函数的一般建模假设。还采用了另外两个基线模型，即分别用于纵向和横向运动的IDM和MOBIL，以及恒速模型。
+4. **Interaction Factors:**我们分析了交互因素对建模精度的影响。它们包括奖励函数中的交互功能和在环境模型中模拟周围车辆对自我车辆路线变化的反应。
+
+
+
+## 实现细节
+
+1. 为了简化，目标采样空间简化为$\Phi=\{v_{xe}, y_{e}\}$。只包含纵向的速度和横向的位置，其他设置为0
+2. 纵向速度的采样区间为：$[v-5, v+5]m/s$ ，以$1m/s$作为间隔，其中，$v$是车辆的初始速度
+3. 横向位置的采样集合为$\{y,y_L,y_R\}$，其中，$y$是初始的横向位置，$y_L$和$y_R$分别是左右车道的位置(if they are available)
+4. 轨迹的时间跨度是$5s$，并且模拟间隔为$0.1s$
+5. IDM模型的参数如下：
+   - desired velocity $v_0=v_{current}\ m/s$
+   - maximum acceleration $a_{max}=5\ m/s$
+   - desired time gap $\tau=1\ s$
+   - comfortable braking deceleration $b=3\ m/s$
+   - minimum distance $s_0=1\ m$
+6. 出现的一个问题是，人类轨迹的纵向和横向抽动与生成的轨迹难以匹配，因为多项式曲线是平滑的，而人类驾驶轨迹充满了噪声运动。因此，我们在给定原始轨迹的初始状态和结束条件的情况下，将人类驾驶轨迹处理成多项式曲线来表示。
+
+## 参考文献
+
+```
+@ARTICLE{Huang2021,
+  author={Huang, Zhiyu and Wu, Jingda and Lv, Chen},
+  journal={IEEE Transactions on Intelligent Transportation Systems}, 
+  title={Driving Behavior Modeling Using Naturalistic Human Driving Data With Inverse Reinforcement Learning}, 
+  year={2021},
+  volume={},
+  number={},
+  pages={1-13},
+  doi={10.1109/TITS.2021.3088935}}
+```
