@@ -339,3 +339,48 @@ $$\R(\zeta)=\sum_{t}r(\mathbf{s}_t)=\mathbf{\theta}^T\mathbf{f}_{\zeta}=\mathbf{
   pages={1-13},
   doi={10.1109/TITS.2021.3088935}}
 ```
+
+
+
+# <center>Behavior Prediction in Autonomous Driving</center>
+
+## Introduction
+
+However, current autonomous driving systems do not deal well enough with complex environments filled with human-driven vehicles.
+
+**why ? ** $\Rightarrow$  The main reason is that the current systems are not able to accurately predict the intention or future movement of surrounding vehicles and then negotiate with them.
+
+**How ?** $\Rightarrow$ Ideally, there should be a prediction module in the autonomous driving system architecture.
+
+**Note:** There are two modules in most systems that are related to the understanding and negotiation, i.e., Behavior and Trajectory Planning. 
+
+- The behavior planning module normally outputs high-level commands.
+- The trajectory planning the  generate a feasible plan to conduct the command given by the behavior planner.
+
+Unfortunately, most behavior planners are not able to predict human behaviors and negotiate with human drivers, then generate interactive behavior commands. Similarly, in order to generate cooperative trajectories, most of the planning algorithm require an accurate trajectory estimate for other vehicles.
+
+Modeling the influence of these factors on a human driver's behavior is a challenging task.
+
+**交互的复杂性带来的问题以及如何解决：**Due to the complexity of the interaction, it is extremely hard for a single model to handle all cooperative scenarios, such as ramp-merging, lane-changing or intersection traversing.　However, a **universal framework** may be able to serve as a solution for various scenarios, with minor modifications or specific data to fit in.
+
+**这个framework应该是什么样的，或者说应该做些什么？** 
+
+- The core task for such a framework is to formulate the interaction between the host vehicle and other human-driven vehicles.
+- The framework bridge the gap between the trajectory planner and higher-level task planner, especially in dynamic environments where the trajectory planner needs other vehicles' future movements as a reference.
+
+**鼓励higher-level planners和trajectory planners之间有冲突**
+
+Because there are differences in the abstraction of input information, the trajectory planners and higher-level planners (such as reference planners and mission planners) can encounter conflicts in the decision making and its execution.
+
+**Behavioral planner没有考虑到lower-level planner的失败，如何解决这个问题？**
+
+- The behavioral planning should consider more detailed information and have the capability to predict environmental changes, e.g., the future trajectories of surrounding vehicles, with bounded uncertainty.
+- The behavioral planner should take feedback from the trajectory planner and always prepare to make follow-on decisions.
+
+**需要预测哪些东西？**
+
+To fulfill the requirements for the different levels of decision making and planning, there are three stages of prediction:
+
+- Discrete intentional prediction.
+- Semi-continuous prediction
+- Continuous prediction
