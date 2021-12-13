@@ -283,14 +283,14 @@ $$\R(\zeta)=\sum_{t}r(\mathbf{s}_t)=\mathbf{\theta}^T\mathbf{f}_{\zeta}=\mathbf{
    - Travel Efficiency:  此功能旨在反映人类尽快到达目的地的愿望，其定义为车辆的速度：
      - $f_{v}(\mathbf{s}_t)=v(t)$
    - Comfort:乘坐舒适度是人类驾驶员更喜欢的另一个因素，衡量舒适度的指标是纵向加速度 $a_x$ 、横向加速度 $a_y$和纵向加加速度 $j_x$ ：
-     - ![image-20211011160154955](G:\Prediction\Journal\Photo\comfort.png)
+     - ![image-20211011160154955](./Picture/comfort.png)
      - 其中，$x(t)$和$y(t)$是纵向和横向坐标
    - Risk Aversion: 人类驾驶员倾向于与周围的车辆保持安全距离，这个距离因人类驾驶员而异，这反映了他们不同程度的感知风险。 我们将前车的风险水平定义为与从本车到前车的时距相关的指数函数，假设匀速运动：
      - $f_{risk_f}(\mathbf{s}_t)=e^{-(\frac{x_f(t)-x_{ego}(t)}{v_{ego}(t)})}$
      - $f_{risk_r}(\mathbf{s}_t)=e^{-(\frac{x_{ego}(t)-x_r(t)}{v_{r}(t)})}$
        - 其中，$x_r$是自车后面的车的纵坐标，$x_f$是离自车最近的前面的车的纵坐标
      - 请注意，在我们的环境模型中评估生成的轨迹时可能会发生碰撞，包括与其他车辆或路缘石碰撞，因此碰撞也是一个风险指标，其定义为：
-       - ![image-20211011160858864](G:\Prediction\Journal\Photo\collision.png)
+       - ![image-20211011160858864](./Picture/collision.png)
    - Interaction:
      - 人类驾驶行为的一个基本属性是人类意识到他们的行为对周围车辆的影响，或者更具体地说，他们的计划是否会给其他人带来额外的不便（例如，急速减速让行）[32]。 我们引入以下特征来明确表示这种影响。
      - 它被定义为根据我们的环境模型（后面车辆的链式减速反应）受到本车行为影响的环境车辆的预测减速度的总和，表明本车对原路线的改变有 对他们造成直接影响。
@@ -384,3 +384,10 @@ To fulfill the requirements for the different levels of decision making and plan
 - Discrete intentional prediction.
 - Semi-continuous prediction
 - Continuous prediction
+
+
+
+# <center>PiP: Planning-informed Trajectory Prediction for Autonomous Driving</center>
+
+
+
