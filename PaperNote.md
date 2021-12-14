@@ -413,11 +413,46 @@ $\mathcal{S}=\{s_{tar}\} \cup \mathcal{S}_{nbrs}$ and $\mathcal{A}=\{a_{tar}\} \
 
 #### Objective
 
-To predict multi-modal future tarjectories $\mathcal{T}_{tar}=\{\mathcal{T}_k|k=1,2,...,K\}$ together with corresponding trajectory probability $\{p_k\}$, where $\mathcal{T}_k$ denotes a predicted trajectory for target agent $a_{tar}$ with continuous state information up to the prediction horizon $T_{F}$
+To predict multi-modal future trajectories $\mathcal{T}_{tar}=\{\mathcal{T}_k|k=1,2,...,K\}$ together with corresponding trajectory probability $\{p_k\}$, where $\mathcal{T}_k$ denotes a predicted trajectory for target agent $a_{tar}$ with continuous state information up to the prediction horizon $T_{F}$
 
 $K$ is the number of predicted trajectories.
 
 Additionally, it is required to ensure each prediction $\mathcal{T}_{k}\in \mathcal{T}_{tar}$ is feasible with existing constraints $\mathcal{C}$, which includes environment constraints $\mathcal{C}_{\mathcal{M}}$ and the kinematic constraints $\mathcal{C}_{tar}$.
 
+## Model-based Generator
 
+### State Estimation
+
+1. 使用Kalman Filter来处理track data
+2. 目标汽车的当前速度和朝向会从处理数据中估计出来
+3. 加速度和转向速率则会被设为0
+
+### Path Search
+
+Use the Depth-First-Search algorithm to search potential paths $\mathcal{P}^{+}$ that the prediction target star may reach on the HD Map $\mathcal{M}$. 
+
+#### The path search algorithm $G_{path}$: $(\mathcal{M}, \mathbf{s}_{tar}^{0}) \rightarrow \mathcal{P}^{+}$
+
+1. localize $a_{tar}$ on the map and query its surrounding lane segments as the root segments
+2. with the **lane connectivity** information provided by HD map $\mathcal{M}$, we search the segment sequences along the predecessors and successors of each root segment via Depth-First-Search on $\mathcal{M}$, where the forward-searching distance $D_{F}$ and backward-searching distance $D_{B}$ are set to 140 and 20 meters.
+3. Following, we concatenate each pair if forward and backward segment sequences and remove redundant ones.
+4. Finally, the centerline coordinates of each segment sequence yield a potential path $\mathcal{P}_j \in \mathcal{P}^{+}$.
+
+### Trajectory Generation
+
+Adopt the trajectory generation phase of Frenet planner [1] in our trajectory generator $G_{traj}$: $(\mathcal{P}^{+}, s_{tar}^{0}, \mathcal{C} \rightarrow \mathcal{T})$.
+
+Given a reference path in $\mathcal{P}^{+}$, a dynamic curvilinear (曲线) frame is given by the tangential (切向) vector $\vec{t_{r}}$ and normal vector $\vec{n_{r}}$ at a certain point $r$ on the path centerline. The Cartesian coordinate $\vec{x}=(x,y)$ could be converted to the Frenet coordinate $(s, d)$, with the relation
+
+$$\vec{x}(s(t), d(t))=\vec{r}(s(t))+d(t)\vec{n_r}(s(t))$$
+
+in which $\vec{r}$ represents a vector pointing from the path root, $s$ and $d$ denote the covered arc length and the perpendicular offset.
+
+1.  The trajectory generation phase first projects the current state $\mathbf{s}_{tar}^{0}$ onto the Frenet frame and obtain the state tuple $[s_0, \dot{s}_0, \ddot{s}_0, d_0, \dot{d}_0, \ddot{d}_0]$. 
+2. The longitudinal movement $s(t)$ and lateral movement $d(t)$ within the prediction horizon $T_F$ are then generated independently by connecting the fixed start state with different end states using parametric curves to cover different driving maneuvers.
+3. 
+
+# 参考文献
+
+[1] M. Werling, J. Ziegler, S. Kammel, and S. Thrun. Optimal trajectory generation for dynamic street scenarios in a frenet frame. In ICRA, 2010.
 
